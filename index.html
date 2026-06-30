@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>KALFIX TV | Watch &amp; Earn</title>
+    <style>
+        /* ── Design tokens ───────────────────────────────────── */
+        :root{
+            --kx-green:        #00A859;   /* M-Pesa green — trust, money moving */
+            --kx-green-dark:   #00763E;
+            --kx-green-light:  #E8F8F0;
+            --kx-ink:          #0F1B16;   /* near-black with green undertone */
+            --kx-ink-soft:     #4B5D55;
+            --kx-gold:         #F2A900;   /* earnings / highlight accent */
+            --kx-gold-dark:    #C98A00;
+            --kx-coral:        #FF5A5F;   /* urgency / errors only */
+            --kx-mint:         #F4FBF7;   /* page background */
+            --kx-card:         #FFFFFF;
+            --kx-border:       #E2EFE8;
+        }
+        *{ font-family:'Inter',sans-serif; }
+        h1,h2,h3,h4,.font-display{ font-family:'Poppins',sans-serif; }
+        .tnum{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+
+        /* ── Layout ──────────────────────────────────────────── */
+        .hidden{display:none!important}
+        .page-content{animation:fadeIn .25s ease-out}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+        /* ── Signature: circular task-progress ring ─────────────
+           Uses conic-gradient driven by --pct (0-100) custom property.
+           The ring is the one bold device repeated in header + home,
+           answering "how close to today's payout am I?" at a glance. */
+        .ring{
+            --pct: 0;
+            width:56px; height:56px; border-radius:9999px;
+            background: conic-gradient(var(--kx-gold) calc(var(--pct) * 1%), rgba(255,255,255,.18) 0);
+            display:flex; align-items:center; justify-content:center;
+            transition: background 0.6s ease;
+            flex-shrink:0;
+        }
+        .ring-inner{
+            width:44px; height:44px; border-radius:9999px;
+            background:var(--kx-green-dark);
+            display:flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:800; color:#fff;
+            font-family:'Poppins',sans-serif;
+        }
+        .ring-sm{ width:40px; height:40px; }
+        .ring-sm .ring-inner{ width:31px; height:31px; font-size:9px; }
+        .ring-sm{ background: conic-gradient(var(--kx-gold) calc(var(--pct) * 1%), #E2EFE8 0); }
+        .ring-sm .ring-inner{ background:#fff; color:var(--kx-green-dark); }
+
+        /* ── Streak flame ────────────────────────────────────── */
+        .streak-flame{ display:inline-block; animation:flamePulse 1.6s ease-in-out infinite; }
+        @keyframes flamePulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+        /* ── Winners carousel ────────────────────────────────── */
+        .winner-card{
+            position:absolute; inset:0; display:flex; align-items:center; gap:12px;
+            padding:0 4px; opacity:0; transform:translateX(24px);
+            transition:opacity .5s ease, transform .5s ease;
+            pointer-events:none;
+        }
+        .winner-card.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+        .winner-card.exiting{ opacity:0; transform:translateX(-24px); }
+        .winner-avatar{
+            width:40px;height:40px;border-radius:9999px;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-weight:800;font-size:14px;color:#fff;
+            font-family:'Poppins',sans-serif;
+        }
+        .modal-bg{background:rgba(15,27,22,.72)}
+        .yt-frame{aspect-ratio:16/9;width:100%;border:none}
+        .tab-a{background:var(--kx-green);color:#fff}
+        .tab-i{background:#F0F4F2;color:var(--kx-ink-soft)}
+        .pkg-card{transition:all .2s}
+        .pkg-card:hover{transform:translateY(-2px)}
+
+        /* ── Spinner ─────────────────────────────────────────── */
+        .spin{animation:spin .9s linear infinite;display:inline-block;border-radius:50%}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* ── Toast system ────────────────────────────────────── */
+        #toast-container{
+            position:fixed;top:1rem;left:50%;transform:translateX(-50%);
+            z-index:9999;display:flex;flex-direction:column;gap:.5rem;
+            pointer-events:none;width:90%;max-width:360px
+        }
+        .toast{
+            padding:.75rem 1rem;border-radius:1rem;font-size:.875rem;font-weight:600;
+            text-align:center;animation:toastIn .2s ease-out;pointer-events:auto
+        }
+        @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        .toast-success{background:var(--kx-green);color:#fff}
+        .toast-error  {background:var(--kx-coral);color:#fff}
+        .toast-info   {background:#2563eb;color:#fff}
+        .toast-warning{background:var(--kx-gold-dark);color:#fff}
+
+        /* ── Task paused overlay ─────────────────────────────── */
+        #task-paused-warn{display:none}
+        #task-paused-warn.show{display:block}
+
+        /* ── Bottom nav active state ─────────────────────────── */
+        .nav-btn.active-nav{ color:var(--kx-green-dark); }
+        .nav-btn{ color:#9CA8A1; transition:color .15s; }
+    </style>
+</head>
+<body class="font-sans" style="background:var(--kx-mint); color:var(--kx-ink);">
+
+<div id="toast-container"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUTH PAGE
+══════════════════════════════════════════════════════════ -->
+<section id="auth-page" class="min-h-screen flex flex-col items-center justify-center p-6" style="background:var(--kx-mint);">
+    <div class="w-full max-w-sm">
+
+        <!-- Brand mark -->
+        <div class="mb-8 text-center">
+            <div class="inline-flex items-center gap-2 mb-3">
+                <div class="ring ring-sm" style="--pct:72;">
+                    <div class="ring-inner" style="font-size:13px;">▶</div>
+                </div>
+                <h1 class="text-3xl font-black tracking-tight font-display" style="color:var(--kx-ink);">
+                    KALFIX <span style="color:var(--kx-green);">TV</span>
+                </h1>
+            </div>
+            <p class="text-sm" style="color:var(--kx-ink-soft);">Watch ads. Earn points. Cash out to M-Pesa.</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex rounded-2xl overflow-hidden border mb-6" style="border-color:var(--kx-border);">
+            <button id="tab-login"    onclick="setAuthTab('login')"    class="flex-1 py-3 text-sm font-bold tab-a transition">Sign In</button>
+            <button id="tab-register" onclick="setAuthTab('register')" class="flex-1 py-3 text-sm font-bold tab-i transition">Register</button>
+            <button id="tab-reset"    onclick="setAuthTab('reset')"    class="flex-1 py-3 text-sm font-bold tab-i transition">Reset</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div id="form-login" class="space-y-3">
+            <input id="login-phone" type="text"     placeholder="Phone (e.g. 0712345678)"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <input id="login-pass"  type="password" placeholder="Password"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <p id="login-err" class="hidden text-xs text-left px-1" style="color:var(--kx-coral);"></p>
+            <button id="login-btn" onclick="handleLogin()"
+                    class="w-full py-4 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition font-display"
+                    style="background:var(--kx-green);">Sign In</button>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="form-register" class="hidden space-y-3">
+            <input id="reg-name"  type="text"     placeholder="Full Name"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <input id="reg-phone" type="text"     placeholder="M-Pesa Number"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <input id="reg-pass"  type="password" placeholder="Create Password (min 6 chars)"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <input id="reg-ref"   type="text"     placeholder="Referral code (optional)"
+                   class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                   style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <p id="reg-err" class="hidden text-xs text-left px-1" style="color:var(--kx-coral);"></p>
+            <button id="reg-btn" onclick="handleRegister()"
+                    class="w-full py-4 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition font-display"
+                    style="background:var(--kx-ink);">Create Account</button>
+        </div>
+
+        <!-- RESET -->
+        <div id="form-reset" class="hidden space-y-3">
+            <div id="reset-s1">
+                <input id="reset-phone" type="text" placeholder="Registered Phone Number"
+                       class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border mb-3"
+                       style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-gold);">
+                <button id="otp-btn" onclick="sendOTP()"
+                        class="w-full py-4 text-white font-bold rounded-2xl active:scale-95 transition font-display"
+                        style="background:var(--kx-gold-dark);">Send OTP</button>
+            </div>
+            <div id="reset-s2" class="hidden space-y-3">
+                <p class="text-xs p-3 rounded-xl text-left" style="background:var(--kx-green-light); color:var(--kx-green-dark);">Enter the 6-digit code sent to your phone.</p>
+                <input id="reset-otp" type="text"     maxlength="6" placeholder="6-digit OTP"
+                       class="w-full p-4 rounded-2xl outline-none text-center text-2xl font-mono tracking-[0.5em] focus:ring-2 transition border"
+                       style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-gold);">
+                <input id="reset-pw"  type="password" placeholder="New Password"
+                       class="w-full p-4 rounded-2xl outline-none focus:ring-2 transition text-sm border"
+                       style="background:var(--kx-card); border-color:var(--kx-border); --tw-ring-color:var(--kx-gold);">
+                <button id="verify-btn" onclick="verifyOTP()"
+                        class="w-full py-4 text-white font-bold rounded-2xl active:scale-95 transition font-display"
+                        style="background:var(--kx-gold-dark);">Reset Password</button>
+                <button onclick="sendOTP()" class="text-xs font-medium" style="color:var(--kx-gold-dark);">Resend OTP</button>
+            </div>
+            <p id="reset-err" class="hidden text-xs text-left px-1" style="color:var(--kx-coral);"></p>
+            <p id="reset-ok"  class="hidden text-sm font-medium px-1" style="color:var(--kx-green-dark);"></p>
+        </div>
+
+        <!-- Trust strip -->
+        <div class="mt-8 flex items-center justify-center gap-4 text-[11px]" style="color:var(--kx-ink-soft);">
+            <span class="flex items-center gap-1">🔒 Secure login</span>
+            <span class="flex items-center gap-1">📱 M-Pesa payouts</span>
+            <span class="flex items-center gap-1">🇰🇪 Made for Kenya</span>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════════════════ -->
+<div id="main-app" class="hidden pb-24">
+
+    <!-- Header -->
+    <header class="px-4 py-3 flex justify-between items-center sticky top-0 z-50" style="background:var(--kx-card); border-bottom:1px solid var(--kx-border);">
+        <div class="flex items-center gap-2">
+            <div class="ring ring-sm" style="--pct:0;" id="header-ring">
+                <div class="ring-inner">▶</div>
+            </div>
+            <div>
+                <h1 class="text-base font-black tracking-tight font-display leading-none" style="color:var(--kx-ink);">
+                    KALFIX <span style="color:var(--kx-green);">TV</span>
+                </h1>
+                <!-- Admin badge: only visible for admin users -->
+                <a id="admin-link" href="#" onclick="showAdminPanel()" class="hidden text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter mt-0.5 inline-block" style="background:#FEE2E2; color:#B91C1C;">Admin</a>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="pkg-badge" class="hidden text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter" style="background:var(--kx-green-light); color:var(--kx-green-dark);">Active</span>
+            <div class="px-3 py-1.5 rounded-full" style="background:var(--kx-green-light);">
+                <span id="header-bal" class="text-sm font-extrabold tnum font-display" style="color:var(--kx-green-dark);">Ksh 0.00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── STK PUSH MODAL ──────────────────────────────────── -->
+    <div id="modal-stk" class="modal-bg fixed inset-0 z-[60] flex items-end sm:items-center justify-center hidden">
+        <div class="w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl" style="background:var(--kx-card);">
+            <h3 class="text-lg font-bold mb-1 font-display" style="color:var(--kx-ink);">Confirm Purchase</h3>
+            <p class="text-sm mb-5" style="color:var(--kx-ink-soft);">Upgrade to <span id="stk-name" class="font-bold" style="color:var(--kx-green-dark);">…</span></p>
+            <div class="p-4 rounded-2xl mb-5 space-y-2 text-sm" style="background:var(--kx-mint);">
+                <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Package</span>  <span id="stk-pkg"   class="font-bold">—</span></div>
+                <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Price</span>    <span id="stk-price" class="font-bold tnum">Ksh 0</span></div>
+                <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Daily Earn</span><span id="stk-earn" class="font-bold tnum" style="color:var(--kx-green-dark);">Ksh 0</span></div>
+                <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Tasks/Day</span><span id="stk-tasks" class="font-bold">0</span></div>
+                <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">To</span>       <span id="stk-ph"    class="font-medium" style="color:var(--kx-green-dark);">—</span></div>
+            </div>
+            <div id="stk-status" class="hidden p-3 rounded-xl text-sm mb-4 flex items-center gap-2" style="background:var(--kx-green-light); color:var(--kx-green-dark);">
+                <span class="spin w-4 h-4 border-2 border-t-transparent" style="border-color:var(--kx-green-dark); border-top-color:transparent;"></span>
+                <span id="stk-status-text">Waiting for payment…</span>
+            </div>
+            <button id="stk-btn" onclick="initSTK()"
+                    class="w-full py-4 text-white font-bold rounded-2xl active:scale-95 transition font-display" style="background:var(--kx-green);">Pay Now via M-Pesa</button>
+            <button onclick="closeModal('modal-stk')" class="w-full mt-3 py-2 text-sm" style="color:var(--kx-ink-soft);">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ── WITHDRAW MODAL ─────────────────────────────────── -->
+    <div id="modal-wd" class="modal-bg fixed inset-0 z-[60] flex items-end sm:items-center justify-center hidden">
+        <div class="w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl" style="background:var(--kx-card);">
+            <h3 class="text-lg font-bold mb-1 font-display" style="color:var(--kx-ink);">Withdraw to M-Pesa</h3>
+            <p class="text-sm mb-4" style="color:var(--kx-ink-soft);">Funds sent directly to your registered number</p>
+            <div class="flex justify-between text-sm p-3 rounded-xl mb-4" style="background:var(--kx-mint);">
+                <span style="color:var(--kx-ink-soft);">Available</span>
+                <span id="wd-avail" class="font-bold tnum">Ksh 0.00</span>
+            </div>
+            <input id="wd-amount" type="number" min="50" placeholder="Amount (min Ksh 50)"
+                   class="w-full p-4 rounded-2xl outline-none text-sm mb-3 focus:ring-2 transition border"
+                   style="background:var(--kx-mint); border-color:var(--kx-border); --tw-ring-color:var(--kx-green);">
+            <p id="wd-err" class="hidden text-xs mb-3 px-1" style="color:var(--kx-coral);"></p>
+            <button id="wd-btn" onclick="doWithdraw()"
+                    class="w-full py-4 text-white font-bold rounded-2xl active:scale-95 transition font-display" style="background:var(--kx-ink);">Withdraw Now</button>
+            <button onclick="closeModal('modal-wd')" class="w-full mt-3 py-2 text-sm" style="color:var(--kx-ink-soft);">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ═══════════ HOME ════════════════════════════════════ -->
+    <main id="home-page" class="page-content">
+        <!-- Hero balance card -->
+        <section class="p-6 text-white rounded-b-[28px] shadow-lg" style="background:linear-gradient(135deg, var(--kx-green) 0%, var(--kx-green-dark) 100%);">
+            <div class="flex justify-between items-start mb-5">
+                <div>
+                    <p class="text-xs opacity-80">Welcome back,</p>
+                    <h2 id="greeting" class="text-2xl font-extrabold font-display leading-tight">…</h2>
+                </div>
+                <!-- Today's task progress ring -->
+                <div class="ring" id="home-ring" style="--pct:0;">
+                    <div class="ring-inner">
+                        <span id="ring-label">0/0</span>
+                    </div>
+                </div>
+            </div>
+
+            <p id="earn-hint" class="text-xs mb-4 opacity-90 hidden">
+                Earning <span id="earn-amount" class="font-bold tnum">Ksh 0</span>/day
+                · <span id="task-limit-hint" class="font-bold">0</span> tasks/day
+            </p>
+
+            <div id="status-card" class="bg-white/15 p-4 rounded-2xl border border-white/20 text-sm backdrop-blur-sm">
+                Status: <span class="font-bold" style="color:var(--kx-gold);">No Active Package</span>
+            </div>
+        </section>
+
+        <!-- ── STAT STRIP ──────────────────────────────────────── -->
+        <section class="px-4 -mt-4 relative z-10">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="rounded-2xl p-3 text-center shadow-md" style="background:var(--kx-card);">
+                    <p class="text-[10px] uppercase font-bold tracking-wide mb-0.5" style="color:var(--kx-ink-soft);">Points</p>
+                    <p id="stat-points" class="text-lg font-extrabold tnum font-display" style="color:var(--kx-green-dark);">0</p>
+                </div>
+                <div class="rounded-2xl p-3 text-center shadow-md" style="background:var(--kx-card);">
+                    <p class="text-[10px] uppercase font-bold tracking-wide mb-0.5" style="color:var(--kx-ink-soft);">Streak</p>
+                    <p id="stat-streak" class="text-lg font-extrabold tnum font-display" style="color:var(--kx-gold-dark);">
+                        <span class="streak-flame">🔥</span> 0
+                    </p>
+                </div>
+                <div class="rounded-2xl p-3 text-center shadow-md" style="background:var(--kx-card);">
+                    <p class="text-[10px] uppercase font-bold tracking-wide mb-0.5" style="color:var(--kx-ink-soft);">Today</p>
+                    <p id="stat-today" class="text-lg font-extrabold tnum font-display" style="color:var(--kx-ink);">0/0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── WINNERS CAROUSEL ──────────────────────────────── -->
+        <section class="px-4 mt-3">
+            <div id="winners-carousel" class="rounded-2xl shadow-md p-4 h-[64px] overflow-hidden relative hidden" style="background:var(--kx-card); border:1px solid var(--kx-border);">
+                <!-- Cards are injected and cross-faded by JS -->
+            </div>
+        </section>
+
+        <!-- ── PACKAGES ────────────────────────────────────────── -->
+        <section class="p-4 mt-2">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold flex items-center gap-2 font-display" style="color:var(--kx-ink);">
+                    <svg class="w-5 h-5" style="color:var(--kx-green);" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                    </svg>
+                    Earning Packages
+                </h3>
+                <span class="text-xs" style="color:var(--kx-ink-soft);">1 task ≈ 9.5 min</span>
+            </div>
+            <div id="pkg-list" class="space-y-3">
+                <p class="text-center text-sm py-4" style="color:var(--kx-ink-soft);">Loading packages…</p>
+            </div>
+        </section>
+
+        <!-- ── HOW IT WORKS ────────────────────────────────────── -->
+        <section class="p-4 pt-0">
+            <div class="rounded-2xl p-4" style="background:var(--kx-green-light); border:1px solid var(--kx-border);">
+                <p class="font-bold mb-2 font-display" style="color:var(--kx-green-dark);">How KALFIX TV works</p>
+                <div class="space-y-1.5 text-xs leading-relaxed" style="color:var(--kx-ink-soft);">
+                    <p>1. Pick a package and pay securely via M-Pesa</p>
+                    <p>2. Watch your daily ad videos — about 9.5 minutes each</p>
+                    <p>3. Earn points automatically for every video completed</p>
+                    <p>4. Convert points to cash, then withdraw to M-Pesa anytime</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══════════ TASKS ════════════════════════════════════ -->
+    <main id="tasks-page" class="page-content hidden p-5">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-bold font-display" style="color:var(--kx-ink);">Daily Tasks</h2>
+            <span id="task-badge" class="text-xs font-bold px-3 py-1 rounded-full tnum" style="background:var(--kx-green-light); color:var(--kx-green-dark);">0/0</span>
+        </div>
+        <div class="w-full h-2 rounded-full mb-1 overflow-hidden" style="background:var(--kx-border);">
+            <div id="daily-bar" class="h-full transition-all duration-500 rounded-full" style="width:0%; background:var(--kx-green);"></div>
+        </div>
+        <p id="pts-hint" class="text-xs mb-5 text-right" style="color:var(--kx-ink-soft);">0 pts/task</p>
+
+        <!-- Paused warning: shown when tab goes hidden during a task -->
+        <div id="task-paused-warn" class="rounded-2xl p-4 mb-4 text-sm font-medium text-center" style="background:#FEF3E2; border:1px solid #FBD9A5; color:var(--kx-gold-dark);">
+            ⚠️ Task cancelled — keep this tab active while watching. Start a new task.
+        </div>
+
+        <!-- States -->
+        <div id="task-locked" class="text-center py-20 rounded-3xl border-2 border-dashed" style="border-color:var(--kx-border); background:var(--kx-card);">
+            <p class="text-4xl mb-3">🔒</p>
+            <p class="font-medium text-sm" style="color:var(--kx-ink-soft);">Purchase a package to unlock tasks</p>
+        </div>
+        <div id="task-done" class="hidden text-center py-20 rounded-3xl border-2 border-dashed" style="border-color:var(--kx-green); background:var(--kx-green-light);">
+            <p class="text-4xl mb-3">🎉</p>
+            <p class="font-bold" style="color:var(--kx-green-dark);">All tasks done for today!</p>
+            <p class="text-sm mt-2" style="color:var(--kx-ink-soft);">Come back tomorrow to earn more.</p>
+        </div>
+
+        <!-- Active task UI -->
+        <div id="task-container" class="hidden space-y-4">
+            <div class="rounded-3xl overflow-hidden shadow-sm" style="background:var(--kx-card); border:1px solid var(--kx-border);">
+                <div id="yt-wrapper" class="bg-black">
+                    <iframe id="yt-frame" class="yt-frame" allowfullscreen
+                            allow="autoplay; encrypted-media" src="about:blank"></iframe>
+                </div>
+                <div class="p-5">
+                    <p id="yt-title" class="font-bold text-sm mb-3" style="color:var(--kx-ink);">Loading video…</p>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-widest" style="color:var(--kx-green-dark);">Watch Task</span>
+                        <span id="timer-display" class="text-xs font-mono tnum" style="color:var(--kx-ink-soft);">9:30 required</span>
+                    </div>
+                    <div class="w-full h-2.5 rounded-full mb-4 overflow-hidden" style="background:var(--kx-mint);">
+                        <div id="prog-bar" class="h-full w-0 transition-all duration-1000 rounded-full" style="background:var(--kx-green);"></div>
+                    </div>
+                    <button id="task-btn" onclick="startTask()"
+                            class="w-full py-4 text-white font-bold rounded-2xl active:scale-95 transition font-display" style="background:var(--kx-green);">▶ Start Task</button>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-widest mb-3 px-1" style="color:var(--kx-ink-soft);">Up Next</p>
+                <div id="vid-queue" class="space-y-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ═══════════ WALLET ═══════════════════════════════════ -->
+    <main id="wallet-page" class="page-content hidden p-5">
+        <h2 class="text-xl font-bold mb-5 font-display" style="color:var(--kx-ink);">My Wallet</h2>
+        <div class="p-6 rounded-3xl text-white text-center mb-5 shadow-lg" style="background:linear-gradient(135deg, var(--kx-ink) 0%, #1F352C 100%);">
+            <p class="text-[10px] uppercase font-bold tracking-widest mb-1 opacity-60">Available Balance</p>
+            <h3 id="wallet-bal" class="text-4xl font-black tnum font-display">Ksh 0.00</h3>
+            <p id="pts-display" class="text-sm font-bold mt-2 tnum" style="color:var(--kx-gold);">0 Points Pending</p>
+            <p class="text-[10px] mt-1 opacity-50">10 pts = Ksh 1.00</p>
+        </div>
+        <div class="p-5 rounded-3xl mb-5" style="background:var(--kx-green-light); border:1px solid var(--kx-border);">
+            <h4 class="font-bold text-sm mb-1 font-display" style="color:var(--kx-green-dark);">Convert Points → Cash</h4>
+            <p class="text-xs mb-4" style="color:var(--kx-ink-soft);">Rate: 10 points = Ksh 1.00</p>
+            <button id="convert-btn" onclick="doConvert()"
+                    class="w-full py-3 text-white font-bold rounded-xl active:scale-95 transition text-sm font-display" style="background:var(--kx-green);">Convert Now</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="openWD()"
+                    class="text-white py-4 rounded-2xl font-bold text-sm active:scale-95 transition font-display" style="background:var(--kx-ink);">💸 Withdraw</button>
+            <button onclick="showPage('history-page','nav-wallet')"
+                    class="py-4 rounded-2xl font-bold text-sm font-display" style="background:var(--kx-card); border:1px solid var(--kx-border); color:var(--kx-ink);">📋 History</button>
+        </div>
+    </main>
+
+    <!-- ═══════════ HISTORY ══════════════════════════════════ -->
+    <main id="history-page" class="page-content hidden p-5">
+        <div class="flex items-center gap-3 mb-5">
+            <button onclick="showPage('wallet-page','nav-wallet')" style="color:var(--kx-ink-soft);">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M15 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="text-xl font-bold font-display" style="color:var(--kx-ink);">Activity</h2>
+        </div>
+        <div id="tx-list" class="space-y-3">
+            <p class="text-center py-10 text-sm" style="color:var(--kx-ink-soft);">Loading…</p>
+        </div>
+    </main>
+
+    <!-- ═══════════ PROFILE ══════════════════════════════════ -->
+    <main id="profile-page" class="page-content hidden p-5">
+        <h2 class="text-xl font-bold mb-5 text-center font-display" style="color:var(--kx-ink);">Profile</h2>
+        <div class="rounded-3xl p-6 shadow-sm mb-4 text-center" style="background:var(--kx-card); border:1px solid var(--kx-border);">
+            <div id="avatar"
+                 class="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-3 border-4 font-display"
+                 style="background:var(--kx-green-light); color:var(--kx-green-dark); border-color:var(--kx-green-light);">KD</div>
+            <h3 id="p-name"  class="text-lg font-bold font-display" style="color:var(--kx-ink);">—</h3>
+            <p  id="p-phone" class="text-sm mt-1" style="color:var(--kx-ink-soft);">—</p>
+            <span id="p-pkg" class="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full" style="background:var(--kx-green-light); color:var(--kx-green-dark);">No Package</span>
+        </div>
+        <div class="rounded-3xl p-4 shadow-sm mb-4 space-y-3 text-sm" style="background:var(--kx-card); border:1px solid var(--kx-border);">
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Balance</span>        <span id="p-bal"     class="font-bold tnum">Ksh 0.00</span></div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Pending Points</span> <span id="p-pts"     class="font-bold tnum" style="color:var(--kx-green-dark);">0 pts</span></div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Today's Tasks</span>  <span id="p-tasks"   class="font-bold tnum">0 / 0</span></div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Daily Earnings</span> <span id="p-earn"    class="font-bold tnum" style="color:var(--kx-green-dark);">Ksh 0</span></div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Current Streak</span> <span id="p-streak"  class="font-bold tnum" style="color:var(--kx-gold-dark);">0 days</span></div>
+            <div class="flex justify-between">
+                <span style="color:var(--kx-ink-soft);">Referral Code</span>
+                <span id="p-refcode" class="font-bold cursor-pointer underline decoration-dotted" style="color:var(--kx-green-dark);" onclick="copyRefCode()">—</span>
+            </div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Package Expires</span><span id="p-expires" class="font-bold">—</span></div>
+            <div class="flex justify-between"><span style="color:var(--kx-ink-soft);">Days Remaining</span> <span id="p-days"    class="font-bold tnum">—</span></div>
+        </div>
+        <button onclick="handleLogout()"
+                class="w-full py-4 font-bold rounded-2xl active:opacity-80 transition text-sm font-display" style="background:#FEE2E2; color:#B91C1C;">Log Out</button>
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 flex justify-around p-3 z-50" style="background:var(--kx-card); border-top:1px solid var(--kx-border);">
+        <button id="nav-home"    onclick="showPage('home-page','nav-home')"       class="nav-btn flex flex-col items-center active-nav">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+            </svg>
+            <span class="text-[10px] mt-1 font-medium">Home</span>
+        </button>
+        <button id="nav-tasks"   onclick="showPage('tasks-page','nav-tasks')"     class="nav-btn flex flex-col items-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-[10px] mt-1 font-medium">Tasks</span>
+        </button>
+        <button id="nav-wallet"  onclick="showPage('wallet-page','nav-wallet')"   class="nav-btn flex flex-col items-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+            <span class="text-[10px] mt-1 font-medium">Wallet</span>
+        </button>
+        <button id="nav-profile" onclick="showPage('profile-page','nav-profile')" class="nav-btn flex flex-col items-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span class="text-[10px] mt-1 font-medium">Profile</span>
+        </button>
+    </nav>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ── API base ─────────────────────────────────────────────────────────────────
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '')
+    ? 'http://127.0.0.1:5000'
+    : location.origin;
+
+// FIX: Set IS_SANDBOX=false before going live. When false, the fallback
+//      /api/package/activate endpoint is never called.
+const IS_SANDBOX = true;
+
+// Server enforces 570 s minimum; we show 570 s (9 min 30 s) so client and
+// server timings are aligned. The extra ~30 s grace is handled server-side.
+const TASK_SECS     = 570;
+const MIN_WITHDRAWAL = 50;
+
+// ── Global state ──────────────────────────────────────────────────────────────
+const S = {
+    token: null, phone: null, name: null,
+    balance: 0, points: 0, package: 'None',
+    tasksToday: 0, dailyLimit: 0, dailyEarn: 0,
+    packageExpires: null, daysLeft: null,
+    isAdmin: false, videos: [], vidIdx: 0,
+    stkPkg: '', stkPollTimer: null, stkCid: null,
+    packages: [],
+    taskTimer: null, taskRunning: false,
+    currentTaskToken: null,
+    referralCode: null,
+    streak: 0
+};
+
+const authH = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + S.token
+});
+
+// ── Toast notifications ───────────────────────────────────────────────────────
+function toast(msg, type = 'info', duration = 3500) {
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), duration);
+}
+
+// ── Safe JSON fetch ───────────────────────────────────────────────────────────
+async function apiFetch(url, opts = {}) {
+    const res  = await fetch(url, opts);
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch { return { success: false, message: `Server error (${res.status})` }; }
+}
+
+// ── Session bootstrap ─────────────────────────────────────────────────────────
+window.onload = async function () {
+    const saved = sessionStorage.getItem('kf_sess');
+    if (saved) {
+        try {
+            const sess = JSON.parse(saved);
+            S.token = sess.token;
+            S.phone = sess.phone;
+            const ok = await fetchMe();
+            if (ok) { bootApp(); return; }
+        } catch {}
+        sessionStorage.removeItem('kf_sess');
+    }
+};
+
+function saveSession() {
+    sessionStorage.setItem('kf_sess', JSON.stringify({ token: S.token, phone: S.phone }));
+}
+
+function bootApp() {
+    document.getElementById('auth-page').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+
+    // Show admin link for admin accounts
+    if (S.isAdmin) {
+        document.getElementById('admin-link').classList.remove('hidden');
+    }
+
+    // FIX: Load packages before refreshUI so pts_per_task is available immediately
+    loadPackages().then(() => {
+        refreshUI();
+        if (S.package && S.package !== 'None') loadVideos();
+    });
+
+    setupVisibilityGuard();
+    startWinnersCarousel();
+}
+
+async function fetchMe() {
+    try {
+        const d = await apiFetch(`${API}/api/user/me`, { headers: authH() });
+        if (!d.success) return false;
+        Object.assign(S, {
+            name:           d.name,
+            balance:        d.balance,
+            points:         d.points,
+            package:        d.package,
+            tasksToday:     d.tasks_today,
+            dailyLimit:     d.daily_limit,
+            dailyEarn:      d.daily_earn,
+            isAdmin:        d.is_admin,
+            packageExpires: d.package_expires,
+            daysLeft:       d.days_left,
+            referralCode:   d.referral_code
+        });
+        return true;
+    } catch { return false; }
+}
+
+async function loadPackages() {
+    try {
+        const d = await apiFetch(`${API}/api/packages`);
+        if (d.success) { S.packages = d.packages; renderPackages(); }
+    } catch { renderPackagesFallback(); }
+}
+
+// ── Winners carousel ──────────────────────────────────────────────────────────
+const AVATAR_COLORS = ['#00A859','#F2A900','#5B8DEF','#9B5DE5','#22B8CF','#FF5A5F','#C2845B'];
+
+function avatarColorFor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function initialsFor(name) {
+    return (name || '?').trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function formatWinnerCard(w) {
+    const amount = Number(w.amount).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    let text;
+    if (w.type === 'withdrawal') {
+        text = `<span class="font-bold" style="color:var(--kx-ink);">${w.name}</span> received <span class="font-bold tnum" style="color:var(--kx-green-dark);">Ksh ${amount}</span> via M-Pesa 🎉`;
+    } else {
+        text = `<span class="font-bold" style="color:var(--kx-ink);">${w.name}</span> ${w.message} <span class="font-bold tnum" style="color:var(--kx-gold-dark);">(Ksh ${amount})</span> 🚀`;
+    }
+    return `
+        <div class="winner-avatar" style="background:${avatarColorFor(w.name)}">${initialsFor(w.name)}</div>
+        <div class="flex-1 min-w-0 text-sm leading-snug">${text}</div>
+    `;
+}
+
+async function startWinnersCarousel() {
+    const el = document.getElementById('winners-carousel');
+    if (!el) return;
+
+    let winners = [];
+    let idx = 0;
+
+    async function fetchWinners() {
+        try {
+            const d = await apiFetch(`${API}/api/winners?limit=15`);
+            if (d.success && d.winners.length) {
+                winners = d.winners;
+                if (el.classList.contains('hidden')) {
+                    el.classList.remove('hidden');
+                    renderCard();
+                }
+            } else if (!winners.length) {
+                el.classList.add('hidden');
+            }
+        } catch { /* keep showing existing cards if fetch fails */ }
+    }
+
+    function renderCard() {
+        if (!winners.length) return;
+        const w = winners[idx % winners.length];
+        const card = document.createElement('div');
+        card.className = 'winner-card';
+        card.innerHTML = formatWinnerCard(w);
+        el.appendChild(card);
+
+        void card.offsetWidth; // force reflow so the transition triggers
+        card.classList.add('active');
+
+        const prev = [...el.children].filter(c => c !== card);
+        prev.forEach(p => {
+            p.classList.add('exiting');
+            p.classList.remove('active');
+            setTimeout(() => p.remove(), 550);
+        });
+
+        idx++;
+    }
+
+    await fetchWinners();
+    if (winners.length) {
+        setInterval(() => renderCard(), 4500);
+    }
+    setInterval(fetchWinners, 60000);
+}
+
+// ── Auth tabs ─────────────────────────────────────────────────────────────────
+function setAuthTab(t) {
+    ['login', 'register', 'reset'].forEach(x => {
+        document.getElementById('form-' + x).classList.add('hidden');
+        document.getElementById('tab-' + x).classList.remove('tab-a');
+        document.getElementById('tab-' + x).classList.add('tab-i');
+    });
+    document.getElementById('form-' + t).classList.remove('hidden');
+    document.getElementById('tab-' + t).classList.remove('tab-i');
+    document.getElementById('tab-' + t).classList.add('tab-a');
+}
+
+function showErr(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+function clearErr(id) { document.getElementById(id).classList.add('hidden'); }
+
+function setBtn(id, disabled, text) {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.disabled   = disabled;
+    b.textContent = text;
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+async function handleLogin() {
+    clearErr('login-err');
+    const ph = document.getElementById('login-phone').value.trim();
+    const pw = document.getElementById('login-pass').value;
+    if (!ph || !pw) { showErr('login-err', 'Enter phone and password'); return; }
+    setBtn('login-btn', true, 'Signing in…');
+    try {
+        const d = await apiFetch(`${API}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: ph, password: pw })
+        });
+        if (!d.success) { showErr('login-err', d.message); return; }
+        applyAuth(d);
+        bootApp();
+    } catch { showErr('login-err', 'Cannot connect to server'); }
+    finally { setBtn('login-btn', false, 'Sign In'); }
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+async function handleRegister() {
+    clearErr('reg-err');
+    const nm  = document.getElementById('reg-name').value.trim();
+    const ph  = document.getElementById('reg-phone').value.trim();
+    const pw  = document.getElementById('reg-pass').value;
+    const ref = document.getElementById('reg-ref').value.trim();
+    if (!nm || !ph || !pw) { showErr('reg-err', 'All fields required'); return; }
+    if (pw.length < 6)     { showErr('reg-err', 'Password must be 6+ characters'); return; }
+    setBtn('reg-btn', true, 'Creating account…');
+    try {
+        const d = await apiFetch(`${API}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: nm, phone: ph, password: pw, referral_code: ref })
+        });
+        if (!d.success) { showErr('reg-err', d.message); return; }
+        applyAuth(d);
+        bootApp();
+    } catch { showErr('reg-err', 'Cannot connect to server'); }
+    finally { setBtn('reg-btn', false, 'Create Account'); }
+}
+
+function applyAuth(d) {
+    Object.assign(S, {
+        token:        d.token,
+        phone:        d.phone,
+        name:         d.name,
+        balance:      d.balance      || 0,
+        points:       d.points       || 0,
+        package:      d.package      || 'None',
+        isAdmin:      d.is_admin     || false,
+        referralCode: d.referral_code || null
+    });
+    saveSession();
+}
+
+// ── OTP ───────────────────────────────────────────────────────────────────────
+async function sendOTP() {
+    clearErr('reset-err');
+    const ph = document.getElementById('reset-phone').value.trim();
+    if (!ph) { showErr('reset-err', 'Enter phone number'); return; }
+    setBtn('otp-btn', true, 'Sending…');
+    try {
+        const d = await apiFetch(`${API}/api/auth/otp/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: ph })
+        });
+        if (!d.success) { showErr('reset-err', d.message); return; }
+        document.getElementById('reset-s1').classList.add('hidden');
+        document.getElementById('reset-s2').classList.remove('hidden');
+        if (d.dev_code) {
+            document.getElementById('reset-ok').textContent = `[DEV] OTP: ${d.dev_code}`;
+            document.getElementById('reset-ok').classList.remove('hidden');
+        }
+    } catch { showErr('reset-err', 'Cannot connect'); }
+    finally  { setBtn('otp-btn', false, 'Send OTP'); }
+}
+
+async function verifyOTP() {
+    clearErr('reset-err');
+    const ph   = document.getElementById('reset-phone').value.trim();
+    const code = document.getElementById('reset-otp').value.trim();
+    const pw   = document.getElementById('reset-pw').value;
+    if (!code || !pw) { showErr('reset-err', 'Enter OTP and new password'); return; }
+    setBtn('verify-btn', true, 'Verifying…');
+    try {
+        const d = await apiFetch(`${API}/api/auth/otp/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: ph, code, new_password: pw })
+        });
+        if (!d.success) { showErr('reset-err', d.message); return; }
+        document.getElementById('reset-ok').textContent = '✅ Password reset! You can now sign in.';
+        document.getElementById('reset-ok').classList.remove('hidden');
+        document.getElementById('reset-s2').classList.add('hidden');
+        setTimeout(() => setAuthTab('login'), 2000);
+    } catch { showErr('reset-err', 'Cannot connect'); }
+    finally  { setBtn('verify-btn', false, 'Reset Password'); }
+}
+
+async function handleLogout() {
+    // FIX: abort any running task cleanly before logout
+    abortRunningTask();
+    try {
+        await apiFetch(`${API}/api/auth/logout`, { method: 'POST', headers: authH() });
+    } catch {}
+    sessionStorage.removeItem('kf_sess');
+    location.reload();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(pgId, navId) {
+    document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+    document.getElementById(pgId).classList.remove('hidden');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
+    const nb = document.getElementById(navId);
+    if (nb) nb.classList.add('active-nav');
+    window.scrollTo(0, 0);
+    if (pgId === 'history-page') loadHistory();
+    if (pgId === 'tasks-page')   updateTaskUI();
+}
+
+// ── Admin panel stub ─────────────────────────────────────────────────────────
+function showAdminPanel() {
+    toast('Admin panel: use /api/admin/* endpoints or a dedicated admin dashboard.', 'info', 4000);
+}
+
+// ── Tab visibility guard ─────────────────────────────────────────────────────
+// FIX: properly clear the interval and reset all task state on tab hide.
+function setupVisibilityGuard() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && S.taskRunning) {
+            abortRunningTask();
+            document.getElementById('task-paused-warn').classList.add('show');
+            toast('Task cancelled — tab must stay active while watching.', 'warning', 5000);
+        }
+    });
+}
+
+function abortRunningTask() {
+    if (S.taskTimer) {
+        clearInterval(S.taskTimer);
+        S.taskTimer = null;
+    }
+    S.taskRunning        = false;
+    S.currentTaskToken   = null;
+}
+
+// ── UI Refresh ────────────────────────────────────────────────────────────────
+function refreshUI() {
+    const bal = S.balance.toFixed(2);
+    document.getElementById('header-bal').textContent  = 'Ksh ' + bal;
+    document.getElementById('wallet-bal').textContent  = 'Ksh ' + bal;
+    document.getElementById('pts-display').textContent = S.points + ' Points Pending';
+    document.getElementById('greeting').textContent    = (S.name || 'User').split(' ')[0];
+    document.getElementById('p-name').textContent      = S.name || '—';
+    document.getElementById('p-phone').textContent     = S.phone || '—';
+    document.getElementById('p-pkg').textContent       = S.package;
+    document.getElementById('p-bal').textContent       = 'Ksh ' + bal;
+    document.getElementById('p-pts').textContent       = S.points + ' pts';
+    document.getElementById('p-tasks').textContent     = S.tasksToday + ' / ' + S.dailyLimit;
+    document.getElementById('p-earn').textContent      = 'Ksh ' + S.dailyEarn;
+    document.getElementById('p-refcode').textContent   = S.referralCode || '—';
+    document.getElementById('p-expires').textContent   = S.packageExpires || '—';
+    document.getElementById('p-days').textContent      =
+        S.daysLeft !== null ? S.daysLeft + ' days' : '—';
+    document.getElementById('avatar').textContent      =
+        (S.name || 'KD').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+    // ── Stat strip ──────────────────────────────────────────
+    document.getElementById('stat-points').textContent = S.points.toLocaleString();
+    document.getElementById('stat-today').textContent  = S.tasksToday + '/' + S.dailyLimit;
+    updateStreak();
+    document.getElementById('stat-streak').innerHTML =
+        `<span class="streak-flame">🔥</span> ${S.streak}`;
+    document.getElementById('p-streak').textContent = S.streak + (S.streak === 1 ? ' day' : ' days');
+
+    const hasPkg = S.package && S.package !== 'None';
+    if (hasPkg) {
+        document.getElementById('pkg-badge').classList.remove('hidden');
+        document.getElementById('status-card').innerHTML =
+            `Status: <span class="font-bold" style="color:var(--kx-gold);">Active · ${S.package}</span>` +
+            (S.daysLeft !== null ? `<span class="text-xs ml-2 opacity-80">(${S.daysLeft} days left)</span>` : '');
+        document.getElementById('earn-hint').classList.remove('hidden');
+        document.getElementById('earn-amount').textContent     = 'Ksh ' + S.dailyEarn;
+        document.getElementById('task-limit-hint').textContent = S.dailyLimit;
+    } else {
+        document.getElementById('pkg-badge').classList.add('hidden');
+        document.getElementById('status-card').innerHTML =
+            'Status: <span class="font-bold" style="color:var(--kx-gold);">No Active Package</span>';
+    }
+
+    // FIX: re-render packages so ACTIVE badge reflects current state
+    renderPackages();
+    updateTaskUI();
+    updateDailyBar();
+    updateProgressRings();
+}
+
+// ── Progress rings (header + home hero) ─────────────────────────────────────
+// Drives the conic-gradient --pct custom property based on today's task
+// completion. This is the signature visual device: at a glance it answers
+// "how close am I to today's full payout?"
+function updateProgressRings() {
+    const pct = S.dailyLimit > 0 ? Math.min(Math.round((S.tasksToday / S.dailyLimit) * 100), 100) : 0;
+    const headerRing = document.getElementById('header-ring');
+    const homeRing   = document.getElementById('home-ring');
+    const ringLabel  = document.getElementById('ring-label');
+    if (headerRing) headerRing.style.setProperty('--pct', pct);
+    if (homeRing)   homeRing.style.setProperty('--pct', pct);
+    if (ringLabel)  ringLabel.textContent = S.tasksToday + '/' + S.dailyLimit;
+}
+
+// ── Daily streak ──────────────────────────────────────────────────────────────
+// Tracks consecutive days where the user completed their full daily task
+// quota. Persisted in localStorage per-phone so it survives reloads.
+// This is a lightweight client-side indicator — the backend remains the
+// source of truth for points and balance.
+function updateStreak() {
+    if (!S.phone) { S.streak = 0; return; }
+    const key = `kf_streak_${S.phone}`;
+    let data;
+    try {
+        data = JSON.parse(localStorage.getItem(key)) || { streak: 0, lastDate: null };
+    } catch {
+        data = { streak: 0, lastDate: null };
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const completedToday = S.dailyLimit > 0 && S.tasksToday >= S.dailyLimit;
+
+    if (completedToday && data.lastDate !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        data.streak = (data.lastDate === yesterday) ? data.streak + 1 : 1;
+        data.lastDate = today;
+        try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+    } else if (data.lastDate && data.lastDate !== today) {
+        // Check if the streak was broken (more than 1 day gap since last completion)
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        if (data.lastDate !== yesterday && data.lastDate !== today) {
+            data.streak = 0;
+            try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+        }
+    }
+
+    S.streak = data.streak || 0;
+}
+
+function updateDailyBar() {
+    const pct = S.dailyLimit > 0 ? Math.round((S.tasksToday / S.dailyLimit) * 100) : 0;
+    document.getElementById('daily-bar').style.width   = pct + '%';
+    document.getElementById('task-badge').textContent  = S.tasksToday + '/' + S.dailyLimit;
+    const pkg = S.packages.find(p => p.name === S.package);
+    document.getElementById('pts-hint').textContent    = pkg ? pkg.pts_per_task + ' pts/task' : '0 pts/task';
+}
+
+function updateTaskUI() {
+    const hasPkg  = S.package && S.package !== 'None';
+    const locked  = document.getElementById('task-locked');
+    const done    = document.getElementById('task-done');
+    const cont    = document.getElementById('task-container');
+    const paused  = document.getElementById('task-paused-warn');
+
+    if (!hasPkg) {
+        locked.classList.remove('hidden');
+        done.classList.add('hidden');
+        cont.classList.add('hidden');
+        paused.classList.remove('show');
+    } else if (S.tasksToday >= S.dailyLimit) {
+        locked.classList.add('hidden');
+        done.classList.remove('hidden');
+        cont.classList.add('hidden');
+        paused.classList.remove('show');
+    } else {
+        locked.classList.add('hidden');
+        done.classList.add('hidden');
+        cont.classList.remove('hidden');
+        // Don't hide paused warning here — let it persist until user starts a new task
+    }
+}
+
+// ── Package cards ─────────────────────────────────────────────────────────────
+// Each package gets an accent color used only for its badge dot and price tag —
+// keeps the page calm (mint/white/ink) while still differentiating tiers.
+const PKG_COLORS = {
+    Bronze:   { dot: '#C2845B', badge: 'Bronze' },
+    Silver:   { dot: '#9CA8A1', badge: 'Silver' },
+    Gold:     { dot: '#F2A900', badge: 'Gold ⭐' },
+    Platinum: { dot: '#5B8DEF', badge: 'Platinum' },
+    Diamond:  { dot: '#22B8CF', badge: 'Diamond 💎' },
+    Elite:    { dot: '#9B5DE5', badge: 'Elite 👑' },
+    VIP:      { dot: '#FF5A5F', badge: 'VIP 🔥' },
+};
+
+function renderPackages() {
+    const container = document.getElementById('pkg-list');
+    if (!S.packages.length) { renderPackagesFallback(); return; }
+    container.innerHTML = S.packages.map(pkg => {
+        const c        = PKG_COLORS[pkg.name] || { dot: 'var(--kx-green)', badge: pkg.name };
+        const isActive = S.package === pkg.name;
+        const btnAttrs = isActive
+            ? `disabled class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-not-allowed" style="background:var(--kx-border); color:var(--kx-ink-soft);"`
+            : `onclick="openSTKModal('${pkg.name}',${pkg.price},${pkg.daily_earn},${pkg.daily_tasks})" class="px-4 py-2.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition whitespace-nowrap font-display text-white" style="background:var(--kx-green);"`;
+        return `
+        <div class="pkg-card p-4 rounded-2xl flex justify-between items-center shadow-sm"
+             style="background:var(--kx-card); border:2px solid ${isActive ? 'var(--kx-green)' : 'var(--kx-border)'};">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${c.dot};"></span>
+                    <p class="font-bold font-display" style="color:var(--kx-ink);">${c.badge}</p>
+                    ${isActive ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background:var(--kx-green-light); color:var(--kx-green-dark);">ACTIVE</span>` : ''}
+                </div>
+                <p class="text-xs font-semibold mt-0.5 tnum" style="color:var(--kx-green-dark);">Ksh ${pkg.daily_earn.toLocaleString()}/day</p>
+                <p class="text-[11px]" style="color:var(--kx-ink-soft);">${pkg.daily_tasks} task${pkg.daily_tasks > 1 ? 's' : ''}/day · ${pkg.pts_per_task} pts/task</p>
+            </div>
+            <button ${btnAttrs}>${isActive ? 'Active' : 'Ksh ' + pkg.price.toLocaleString()}</button>
+        </div>`;
+    }).join('');
+}
+
+function renderPackagesFallback() {
+    document.getElementById('pkg-list').innerHTML =
+        `<p class="text-center text-sm py-4" style="color:var(--kx-coral);">Could not load packages. Is the server running?</p>`;
+}
+
+// ── STK Push ──────────────────────────────────────────────────────────────────
+function openSTKModal(name, price, earn, tasks) {
+    S.stkPkg = name;
+    document.getElementById('stk-name').textContent  = name;
+    document.getElementById('stk-pkg').textContent   = name;
+    document.getElementById('stk-price').textContent = 'Ksh ' + price.toLocaleString();
+    document.getElementById('stk-earn').textContent  = 'Ksh ' + earn.toLocaleString();
+    document.getElementById('stk-tasks').textContent = tasks + ' tasks/day';
+    document.getElementById('stk-ph').textContent    = S.phone || '—';
+    document.getElementById('stk-status').classList.add('hidden');
+    const btn = document.getElementById('stk-btn');
+    btn.disabled    = false;
+    btn.textContent = 'Pay Now via M-Pesa';
+    document.getElementById('modal-stk').classList.remove('hidden');
+}
+
+async function initSTK() {
+    const btn = document.getElementById('stk-btn');
+    if (btn.disabled) return; // guard double-tap
+    btn.disabled    = true;
+    btn.textContent = 'Sending STK Push…';
+
+    try {
+        const d = await apiFetch(`${API}/api/package/buy`, {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ package_name: S.stkPkg })
+        });
+
+        if (!d.success) {
+            if (IS_SANDBOX) {
+                // Sandbox fallback: manual activation
+                const fb = await apiFetch(`${API}/api/package/activate`, {
+                    method: 'POST', headers: authH(),
+                    body: JSON.stringify({ package_name: S.stkPkg })
+                });
+                if (fb.success) {
+                    await fetchMe();
+                    closeModal('modal-stk');
+                    refreshUI();
+                    if (S.package !== 'None') loadVideos();
+                    toast('✅ ' + fb.message + ' (Sandbox mode)', 'success');
+                } else {
+                    toast('❌ ' + (fb.message || 'Activation failed'), 'error');
+                    btn.disabled    = false;
+                    btn.textContent = 'Pay Now via M-Pesa';
+                }
+            } else {
+                toast('❌ ' + (d.message || 'Payment failed'), 'error');
+                btn.disabled    = false;
+                btn.textContent = 'Pay Now via M-Pesa';
+            }
+            return;
+        }
+
+        S.stkCid = d.checkout_id;
+        document.getElementById('stk-status').classList.remove('hidden');
+        document.getElementById('stk-status-text').textContent = d.message;
+        btn.textContent = 'Waiting for PIN…';
+
+        // FIX: clear any pre-existing poll timer before starting a new one
+        if (S.stkPollTimer) { clearInterval(S.stkPollTimer); S.stkPollTimer = null; }
+
+        let attempts = 0;
+        S.stkPollTimer = setInterval(async () => {
+            attempts++;
+            if (attempts > 30) {
+                clearInterval(S.stkPollTimer);
+                S.stkPollTimer = null;
+                document.getElementById('stk-status-text').textContent = 'Timed out. Try again.';
+                btn.disabled    = false;
+                btn.textContent = 'Retry';
+                return;
+            }
+            try {
+                const pr = await apiFetch(`${API}/api/package/status/${S.stkCid}`, { headers: authH() });
+                if (pr.status === 'completed') {
+                    clearInterval(S.stkPollTimer);
+                    S.stkPollTimer = null;
+                    await fetchMe();
+                    closeModal('modal-stk');
+                    refreshUI();
+                    if (S.package !== 'None') loadVideos();
+                    toast(`✅ ${pr.package} activated!`, 'success');
+                } else if (pr.status === 'failed') {
+                    clearInterval(S.stkPollTimer);
+                    S.stkPollTimer = null;
+                    document.getElementById('stk-status-text').textContent = 'Payment failed. Try again.';
+                    btn.disabled    = false;
+                    btn.textContent = 'Retry Payment';
+                }
+            } catch {}
+        }, 3000);
+
+    } catch {
+        toast('Connection error. Try again.', 'error');
+        btn.disabled    = false;
+        btn.textContent = 'Pay Now via M-Pesa';
+    }
+}
+
+// ── Videos ────────────────────────────────────────────────────────────────────
+async function loadVideos() {
+    try {
+        const d = await apiFetch(`${API}/api/videos`, { headers: authH() });
+        if (d.success && d.videos.length) {
+            const prevId = S.videos[S.vidIdx]?.id;
+            S.videos = d.videos;
+            const newIdx = d.videos.findIndex(v => v.id === prevId);
+            S.vidIdx = newIdx >= 0 ? newIdx : 0;
+            renderVid(S.vidIdx);
+            renderQueue();
+        }
+    } catch { console.warn('Videos unavailable'); }
+}
+
+function renderVid(idx) {
+    const v = S.videos[idx];
+    if (!v) return;
+    S.vidIdx = idx; // always sync state
+    document.getElementById('yt-title').textContent = v.title;
+    document.getElementById('yt-frame').src =
+        `https://www.youtube.com/embed/${v.id}?autoplay=0&rel=0&modestbranding=1`;
+    const pkg = S.packages.find(p => p.name === S.package);
+    const btn = document.getElementById('task-btn');
+    btn.textContent = `▶ Start Task (+${pkg ? pkg.pts_per_task : 0} pts)`;
+    btn.disabled    = false;
+    btn.className   = 'w-full py-4 bg-blue-600 text-white font-bold rounded-2xl active:scale-95 transition';
+    document.getElementById('prog-bar').style.width       = '0%';
+    document.getElementById('timer-display').textContent  = '9:30 required';
+    // Hide paused warning when a fresh video is loaded
+    document.getElementById('task-paused-warn').classList.remove('show');
+}
+
+function renderQueue() {
+    // FIX: render all videos in queue, not just first 6, so highlight works for any vidIdx
+    document.getElementById('vid-queue').innerHTML = S.videos.map((v, i) => `
+        <div onclick="selectVid(${i})"
+             class="flex items-center gap-3 bg-white p-3 rounded-xl cursor-pointer border ${i === S.vidIdx ? 'border-blue-300 bg-blue-50' : 'border-gray-100'} active:bg-gray-50 transition">
+            <img src="https://img.youtube.com/vi/${v.id}/default.jpg"
+                 class="w-16 h-12 rounded-lg object-cover" loading="lazy"
+                 onerror="this.style.display='none'">
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium text-gray-800 truncate">${v.title}</p>
+                <p class="text-[10px] text-green-600 font-bold">9:30 min task</p>
+            </div>
+        </div>`).join('');
+}
+
+function selectVid(idx) {
+    if (S.taskRunning) { toast('Finish current task first!', 'warning'); return; }
+    S.vidIdx = idx;
+    renderVid(idx);
+    renderQueue();
+}
+
+// ── Task timer ────────────────────────────────────────────────────────────────
+async function startTask() {
+    const btn = document.getElementById('task-btn');
+    // FIX: double-tap and re-entry guard
+    if (btn.disabled || S.taskRunning) return;
+    btn.disabled    = true;
+    btn.textContent = 'Starting…';
+
+    S.currentTaskToken = null;
+    const videoId = S.videos[S.vidIdx]?.id;
+    if (!videoId) {
+        toast('No video loaded', 'error');
+        btn.disabled = false;
+        renderVid(S.vidIdx);
+        return;
+    }
+
+    try {
+        const sr = await apiFetch(`${API}/api/tasks/start`, {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ video_id: videoId })
+        });
+        if (!sr.success) {
+            toast('⚠️ ' + sr.message, 'error');
+            btn.disabled = false;
+            renderVid(S.vidIdx);
+            return;
+        }
+        S.currentTaskToken = sr.task_token;
+    } catch {
+        toast('Connection error — could not start task', 'error');
+        btn.disabled = false;
+        renderVid(S.vidIdx);
+        return;
+    }
+
+    S.taskRunning = true;
+    // FIX: clear any stale timer before starting
+    if (S.taskTimer) { clearInterval(S.taskTimer); S.taskTimer = null; }
+
+    btn.textContent = 'Watching…';
+    document.getElementById('task-paused-warn').classList.remove('show');
+
+    const bar   = document.getElementById('prog-bar');
+    const timer = document.getElementById('timer-display');
+    let elapsed  = 0;
+    let earning  = false; // prevent duplicate earn calls if interval fires twice
+
+    S.taskTimer = setInterval(async () => {
+        // FIX: guard against timer firing after task was aborted
+        if (!S.taskRunning || earning) return;
+
+        elapsed++;
+        const pct = Math.min(Math.round((elapsed / TASK_SECS) * 100), 100);
+        bar.style.width = pct + '%';
+
+        // FIX: clamp remaining to 0 so it never goes negative
+        const rem = Math.max(TASK_SECS - elapsed, 0);
+        const m   = Math.floor(rem / 60);
+        const sc  = rem % 60;
+        timer.textContent = rem > 0 ? `${m}:${sc.toString().padStart(2, '0')} remaining` : 'Submitting…';
+
+        if (elapsed >= TASK_SECS) {
+            earning = true;
+            clearInterval(S.taskTimer);
+            S.taskTimer   = null;
+            S.taskRunning = false;
+
+            try {
+                const d = await apiFetch(`${API}/api/tasks/earn`, {
+                    method: 'POST', headers: authH(),
+                    body: JSON.stringify({ task_token: S.currentTaskToken })
+                });
+                S.currentTaskToken = null;
+
+                if (d.success) {
+                    S.points     = d.total_pending;
+                    S.balance    = d.current_balance;
+                    S.tasksToday = d.tasks_today;
+                    S.dailyLimit = d.daily_limit;
+                    refreshUI();
+                    btn.textContent = `✅ +${d.pts_earned} pts earned!`;
+                    btn.className   = 'w-full py-4 bg-green-600 text-white font-bold rounded-2xl active:scale-95 transition';
+                    timer.textContent = 'Complete! ✓';
+
+                    setTimeout(() => {
+                        if (S.tasksToday >= S.dailyLimit) {
+                            updateTaskUI();
+                        } else {
+                            // FIX: advance to next video and re-render queue so highlight is correct
+                            const next = (S.vidIdx + 1) % S.videos.length;
+                            selectVid(next);
+                        }
+                    }, 2500);
+                } else {
+                    toast('⚠️ ' + d.message, 'error');
+                    renderVid(S.vidIdx);
+                    if (d.message && d.message.includes('limit')) updateTaskUI();
+                }
+            } catch {
+                S.currentTaskToken = null;
+                toast('Connection error — could not record earnings', 'error');
+                renderVid(S.vidIdx);
+            } finally {
+                earning = false;
+            }
+        }
+    }, 1000);
+}
+
+// ── Wallet ────────────────────────────────────────────────────────────────────
+async function doConvert() {
+    const btn = document.getElementById('convert-btn');
+    if (S.points <= 0) { toast('No points to convert yet!', 'warning'); return; }
+    if (btn.disabled)  return;
+    btn.disabled    = true;
+    btn.textContent = 'Converting…';
+    try {
+        const d = await apiFetch(`${API}/api/wallet/convert`, {
+            method: 'POST', headers: authH(), body: '{}'
+        });
+        if (d.success) {
+            S.balance = d.new_balance;
+            S.points  = 0;
+            refreshUI();
+            toast('✅ ' + d.message, 'success');
+        } else {
+            toast('❌ ' + d.message, 'error');
+        }
+    } catch { toast('Conversion failed', 'error'); }
+    finally  { btn.disabled = false; btn.textContent = 'Convert Now'; }
+}
+
+function openWD() {
+    document.getElementById('wd-avail').textContent = 'Ksh ' + S.balance.toFixed(2);
+    document.getElementById('wd-amount').value = '';
+    clearErr('wd-err');
+    // FIX: always re-enable button when opening modal
+    const btn = document.getElementById('wd-btn');
+    btn.disabled    = false;
+    btn.textContent = 'Withdraw Now';
+    document.getElementById('modal-wd').classList.remove('hidden');
+}
+
+async function doWithdraw() {
+    clearErr('wd-err');
+    const amount = parseFloat(document.getElementById('wd-amount').value);
+    if (!amount || amount < MIN_WITHDRAWAL) {
+        showErr('wd-err', `Minimum is Ksh ${MIN_WITHDRAWAL}`);
+        return;
+    }
+    if (amount > S.balance) { showErr('wd-err', 'Insufficient balance'); return; }
+    const btn = document.getElementById('wd-btn');
+    if (btn.disabled) return;
+    btn.disabled    = true;
+    btn.textContent = 'Processing…';
+    try {
+        const d = await apiFetch(`${API}/api/wallet/withdraw/request`, {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ amount })
+        });
+        if (d.success) {
+            S.balance = d.new_balance;
+            refreshUI();
+            closeModal('modal-wd');
+            toast('✅ ' + d.message, 'success');
+        } else {
+            showErr('wd-err', d.message || 'Failed');
+            btn.disabled    = false;
+            btn.textContent = 'Withdraw Now';
+        }
+    } catch {
+        showErr('wd-err', 'Connection error');
+        btn.disabled    = false;
+        btn.textContent = 'Withdraw Now';
+    }
+    // Note: on success, modal is closed; button state doesn't matter
+}
+
+// ── Transaction history ───────────────────────────────────────────────────────
+async function loadHistory() {
+    const list = document.getElementById('tx-list');
+    list.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm">Loading…</p>';
+    try {
+        const d = await apiFetch(`${API}/api/wallet/history`, { headers: authH() });
+        if (!d.success || !d.transactions.length) {
+            list.innerHTML = '<p class="text-center text-gray-400 py-10 text-sm">No activity yet.</p>';
+            return;
+        }
+        const icons = {
+            earn:             '🎯',
+            convert:          '💰',
+            purchase:         '📦',
+            withdraw_pending: '⏳',
+            admin_credit:     '🎁',
+            referral_bonus:   '🤝'
+        };
+        const cols = {
+            earn:             'text-green-600',
+            convert:          'text-blue-600',
+            purchase:         'text-orange-500',
+            withdraw_pending: 'text-gray-500',
+            admin_credit:     'text-purple-600',
+            referral_bonus:   'text-teal-600'
+        };
+
+        function fmtAmount(tx) {
+            if (tx.type === 'earn')             return '+' + tx.amount + ' pts';
+            if (tx.type === 'purchase')         return '-Ksh ' + tx.amount;
+            if (tx.type === 'withdraw_pending') return '-Ksh ' + tx.amount;
+            return '+Ksh ' + tx.amount;
+        }
+
+        list.innerHTML = d.transactions.map(tx => `
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">${icons[tx.type] || '📋'}</span>
+                    <div>
+                        <p class="font-medium text-gray-800 text-sm capitalize">${tx.type.replace(/_/g,' ')}</p>
+                        <p class="text-[11px] text-gray-400">${tx.description || ''}</p>
+                        <p class="text-[10px] text-gray-300">${tx.created_at}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="font-bold text-sm ${cols[tx.type] || 'text-gray-700'}">${fmtAmount(tx)}</span>
+                    <p class="text-[10px] ${
+                        tx.status === 'completed' ? 'text-green-500' :
+                        tx.status === 'pending'   ? 'text-yellow-500' : 'text-red-400'
+                    } capitalize">${tx.status}</p>
+                </div>
+            </div>`).join('');
+    } catch {
+        list.innerHTML = '<p class="text-center text-red-400 py-10 text-sm">Failed to load history.</p>';
+    }
+}
+
+// ── Profile helpers ───────────────────────────────────────────────────────────
+function copyRefCode() {
+    if (!S.referralCode) return;
+    // FIX: clipboard API requires HTTPS in production; fallback shows the code in a toast
+    if (navigator.clipboard && location.protocol === 'https:') {
+        navigator.clipboard.writeText(S.referralCode)
+            .then(() => toast('Referral code copied!', 'success', 2000))
+            .catch(() => toast('Code: ' + S.referralCode, 'info', 5000));
+    } else {
+        toast('Your code: ' + S.referralCode, 'info', 5000);
+    }
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    if (id === 'modal-stk') {
+        // FIX: always clear poll timer on modal close to prevent ghost polling
+        if (S.stkPollTimer) {
+            clearInterval(S.stkPollTimer);
+            S.stkPollTimer = null;
+        }
+        S.stkCid = null;
+    }
+    if (id === 'modal-wd') {
+        clearErr('wd-err');
+    }
+}
+</script>
+</body>
+</html>

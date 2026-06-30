@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>KALFIX TV | Admin</title>
+    <style>
+        .hidden { display: none !important; }
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 700; }
+        .tab-inactive { border-bottom: 3px solid transparent; color: #9ca3af; }
+        .badge-earn     { background:#dcfce7; color:#16a34a; }
+        .badge-convert  { background:#dbeafe; color:#2563eb; }
+        .badge-purchase { background:#fef3c7; color:#d97706; }
+        .badge-withdraw { background:#fee2e2; color:#dc2626; }
+        .spin { animation: spin 1s linear infinite; display:inline-block; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        tr:hover td { background: #f9fafb; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-900 min-h-screen">
+
+<!-- LOGIN GATE -->
+<div id="admin-login" class="min-h-screen flex items-center justify-center p-6">
+    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
+        <h1 class="text-3xl font-black text-blue-600 mb-1">KALFIX TV</h1>
+        <p class="text-gray-400 text-sm mb-8">Admin Panel</p>
+        <div class="space-y-4">
+            <input id="a-phone" type="text" placeholder="Admin Phone"
+                class="w-full p-4 bg-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+            <input id="a-pass" type="password" placeholder="Password"
+                class="w-full p-4 bg-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+            <p id="a-err" class="hidden text-red-500 text-xs"></p>
+            <button onclick="adminLogin()" class="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl active:scale-95 transition">Sign In as Admin</button>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="admin-panel" class="hidden">
+
+    <!-- TOPBAR -->
+    <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <h1 class="text-lg font-black text-blue-600">KALFIX TV</h1>
+            <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase">Admin</span>
+        </div>
+        <button onclick="adminLogout()" class="text-sm text-red-500 font-medium active:text-red-700">Logout</button>
+    </header>
+
+    <div class="max-w-6xl mx-auto p-6">
+
+        <!-- STAT CARDS -->
+        <div id="stat-cards" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center col-span-2 md:col-span-1">
+                <p class="text-xs text-gray-400 mb-1">Total Users</p>
+                <p id="s-total" class="text-2xl font-black text-gray-800">—</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                <p class="text-xs text-gray-400 mb-1">Active Packages</p>
+                <p id="s-active" class="text-2xl font-black text-green-600">—</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                <p class="text-xs text-gray-400 mb-1">Total Revenue</p>
+                <p id="s-revenue" class="text-2xl font-black text-blue-600">—</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                <p class="text-xs text-gray-400 mb-1">Platform Balance</p>
+                <p id="s-balance" class="text-2xl font-black text-purple-600">—</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                <p class="text-xs text-gray-400 mb-1">Tasks Today</p>
+                <p id="s-tasks" class="text-2xl font-black text-orange-500">—</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 shadow-sm text-center">
+                <p class="text-xs text-gray-400 mb-1">Pending Payouts</p>
+                <p id="s-pending" class="text-2xl font-black text-red-500">—</p>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="flex gap-6 border-b border-gray-200 mb-6">
+            <button id="t-users"  onclick="switchTab('users')"  class="pb-3 text-sm tab-active">👥 Users</button>
+            <button id="t-txns"   onclick="switchTab('txns')"   class="pb-3 text-sm tab-inactive">💳 Transactions</button>
+            <button id="t-videos" onclick="switchTab('videos')" class="pb-3 text-sm tab-inactive">🎬 Videos</button>
+        </div>
+
+        <!-- USERS TAB -->
+        <div id="tab-users">
+            <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                <input id="user-search" type="text" placeholder="Search by name or phone…"
+                    class="flex-1 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400 transition">
+                <button onclick="loadUsers(1)" class="bg-blue-600 text-white px-5 py-3 rounded-xl text-sm font-bold active:scale-95 transition">Search</button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">User</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Package</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Balance</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Points</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Tasks Today</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr><td colspan="6" class="text-center py-12 text-gray-400">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="users-pagination" class="p-4 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500"></div>
+            </div>
+        </div>
+
+        <!-- TRANSACTIONS TAB -->
+        <div id="tab-txns" class="hidden">
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">User</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Type</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Amount</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Description</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txns-tbody">
+                            <tr><td colspan="6" class="text-center py-12 text-gray-400">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIDEOS TAB -->
+        <div id="tab-videos" class="hidden">
+            <!-- Add video form -->
+            <div class="bg-white rounded-2xl shadow-sm p-5 mb-5 border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4">Add YouTube Video</h3>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input id="vid-id" type="text" placeholder="YouTube Video ID (e.g. dQw4w9WgXcQ)"
+                        class="flex-1 p-3 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400 transition">
+                    <input id="vid-title" type="text" placeholder="Title / Description"
+                        class="flex-1 p-3 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400 transition">
+                    <button onclick="addVideo()" class="bg-green-600 text-white px-5 py-3 rounded-xl text-sm font-bold active:scale-95 transition whitespace-nowrap">+ Add</button>
+                </div>
+                <p id="vid-msg" class="hidden mt-2 text-sm"></p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider w-28">Preview</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Video ID</th>
+                                <th class="text-left p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Title</th>
+                                <th class="text-center p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+                                <th class="text-right p-4 font-semibold text-gray-500 text-xs uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videos-tbody">
+                            <tr><td colspan="5" class="text-center py-12 text-gray-400">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- USER ACTION MODAL -->
+<div id="modal-user" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6 hidden">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+        <h3 class="font-bold text-lg mb-1">Manage User</h3>
+        <p id="modal-user-name" class="text-gray-500 text-sm mb-5">—</p>
+        <div class="space-y-3">
+            <select id="action-select" class="w-full p-3 bg-gray-100 rounded-xl text-sm outline-none">
+                <option value="set_package">Set Package</option>
+                <option value="add_balance">Add Balance (Ksh)</option>
+                <option value="deactivate">Deactivate Account</option>
+            </select>
+            <input id="action-value" type="text" placeholder="Value (e.g. 'Gold' or '100')"
+                class="w-full p-3 bg-gray-100 rounded-xl text-sm outline-none">
+            <p id="action-msg" class="hidden text-sm"></p>
+            <button onclick="submitUserAction()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition text-sm">Apply Action</button>
+            <button onclick="document.getElementById('modal-user').classList.add('hidden')" class="w-full py-2 text-gray-400 text-sm">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:5000';
+let adminToken = null;
+let currentPage = 1;
+let selectedPhone = null;
+
+// ── Login ──────────────────────────────
+async function adminLogin() {
+    const errEl = document.getElementById('a-err');
+    errEl.classList.add('hidden');
+
+    const ph = document.getElementById('a-phone').value.trim();
+    const pw = document.getElementById('a-pass').value;
+
+    if (!ph || !pw) {
+        errEl.textContent = 'Enter phone and password';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const r = await fetch(`${API}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: ph, password: pw })
+        });
+        const d = await r.json();
+
+        // Login failed
+        if (!d.success) {
+            errEl.textContent = d.message || 'Login failed';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        // Logged in but not admin
+        if (!d.is_admin) {
+            errEl.textContent = 'This account does not have admin access';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
+        // Success
+        adminToken = d.token;
+        localStorage.setItem('kf_admin_tok', adminToken);
+        document.getElementById('admin-login').classList.add('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        loadAll();
+
+    } catch (e) {
+        console.error(e);
+        errEl.textContent = 'Cannot connect to server — is it running?';
+        errEl.classList.remove('hidden');
+    }
+}
+
+// Allow pressing Enter in password field to log in
+document.getElementById('a-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') adminLogin();
+});
+
+window.onload = function () {
+    const tok = localStorage.getItem('kf_admin_tok');
+    if (tok) {
+        adminToken = tok;
+        document.getElementById('admin-login').classList.add('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        loadAll();
+    }
+};
+
+function adminLogout() {
+    localStorage.removeItem('kf_admin_tok');
+    adminToken = null;
+    location.reload();
+}
+
+function authH() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken };
+}
+
+async function loadAll() {
+    await Promise.all([loadStats(), loadUsers(1), loadTransactions(), loadVideos()]);
+}
+
+
+// ── Stats ──────────────────────────────
+async function loadStats() {
+    try {
+        const r = await fetch(`${API}/api/admin/stats`, { headers: authH() });
+        const d = await r.json();
+        if (!d.success) return;
+        document.getElementById('s-total').textContent   = d.total_users.toLocaleString();
+        document.getElementById('s-active').textContent  = d.active_users.toLocaleString();
+        document.getElementById('s-revenue').textContent = 'Ksh ' + d.total_revenue.toLocaleString();
+        document.getElementById('s-balance').textContent = 'Ksh ' + d.total_balance.toLocaleString();
+        document.getElementById('s-tasks').textContent   = d.tasks_today.toLocaleString();
+        document.getElementById('s-pending').textContent = d.pending_withdrawals;
+    } catch { console.warn('Stats failed'); }
+}
+
+
+// ── Tabs ───────────────────────────────
+function switchTab(name) {
+    ['users', 'txns', 'videos'].forEach(t => {
+        document.getElementById('tab-' + t).classList.add('hidden');
+        document.getElementById('t-' + t).classList.replace('tab-active', 'tab-inactive');
+    });
+    document.getElementById('tab-' + name).classList.remove('hidden');
+    document.getElementById('t-' + name).classList.replace('tab-inactive', 'tab-active');
+}
+
+
+// ── Users ──────────────────────────────
+async function loadUsers(page) {
+    currentPage = page;
+    const q = document.getElementById('user-search').value.trim();
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-400"><span class="spin">⏳</span> Loading…</td></tr>';
+    try {
+        const r = await fetch(`${API}/api/admin/users?page=${page}&q=${encodeURIComponent(q)}`, { headers: authH() });
+        const d = await r.json();
+        if (!d.success) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-red-400">Failed to load users</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = d.users.length ? d.users.map(u => `
+            <tr class="border-b border-gray-50">
+                <td class="p-4">
+                    <p class="font-medium text-gray-800">${escHtml(u.name || '—')}</p>
+                    <p class="text-xs text-gray-400">${u.phone}</p>
+                    <p class="text-[10px] text-gray-300">${(u.created_at || '').slice(0, 10)}</p>
+                </td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${u.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+                        ${u.package}
+                    </span>
+                    ${u.days_left !== null ? `<p class="text-[10px] text-gray-400 mt-1">${u.days_left}d left</p>` : ''}
+                </td>
+                <td class="p-4 text-right font-mono text-sm font-bold text-gray-800">Ksh ${u.balance.toFixed(2)}</td>
+                <td class="p-4 text-right text-sm text-blue-600 font-bold">${u.points}</td>
+                <td class="p-4 text-right text-sm text-orange-500 font-bold">${u.tasks_today} / ${u.daily_tasks}</td>
+                <td class="p-4 text-right">
+                    <button onclick="openUserModal('${u.phone}','${escHtml(u.name || u.phone)}')"
+                        class="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1.5 rounded-lg active:bg-blue-100 transition">Manage</button>
+                </td>
+            </tr>
+        `).join('') : '<tr><td colspan="6" class="text-center py-10 text-gray-400">No users found</td></tr>';
+
+        const total = d.total;
+        const pages = Math.ceil(total / 20);
+        const pg = document.getElementById('users-pagination');
+        pg.innerHTML = `
+            <span>${total} users · Page ${page} of ${pages}</span>
+            <div class="flex gap-2">
+                ${page > 1 ? `<button onclick="loadUsers(${page - 1})" class="px-3 py-1 bg-gray-100 rounded-lg text-xs font-medium">← Prev</button>` : ''}
+                ${page < pages ? `<button onclick="loadUsers(${page + 1})" class="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium">Next →</button>` : ''}
+            </div>`;
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-red-400">Connection error</td></tr>';
+    }
+}
+
+function openUserModal(phone, name) {
+    selectedPhone = phone;
+    document.getElementById('modal-user-name').textContent = `${name} · ${phone}`;
+    document.getElementById('action-msg').classList.add('hidden');
+    document.getElementById('action-value').value = '';
+    document.getElementById('modal-user').classList.remove('hidden');
+}
+
+async function submitUserAction() {
+    const action = document.getElementById('action-select').value;
+    const value  = document.getElementById('action-value').value.trim();
+    const msg    = document.getElementById('action-msg');
+
+    if (action !== 'deactivate' && !value) {
+        msg.textContent = 'Enter a value';
+        msg.className = 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+        return;
+    }
+    try {
+        const r = await fetch(`${API}/api/admin/user/${selectedPhone}/adjust`, {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ action, value })
+        });
+        const d = await r.json();
+        msg.textContent = d.success ? '✅ ' + d.message : '❌ ' + d.message;
+        msg.className   = d.success ? 'text-green-600 text-sm' : 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+        if (d.success) {
+            setTimeout(() => {
+                document.getElementById('modal-user').classList.add('hidden');
+                loadUsers(currentPage);
+                loadStats();
+            }, 1200);
+        }
+    } catch {
+        msg.textContent = 'Connection error';
+        msg.className = 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+    }
+}
+
+
+// ── Transactions ───────────────────────
+async function loadTransactions() {
+    const tbody = document.getElementById('txns-tbody');
+    try {
+        const r = await fetch(`${API}/api/admin/transactions`, { headers: authH() });
+        const d = await r.json();
+        if (!d.success) return;
+        tbody.innerHTML = d.transactions.length ? d.transactions.map(tx => `
+            <tr class="border-b border-gray-50">
+                <td class="p-4">
+                    <p class="font-medium text-gray-800 text-sm">${escHtml(tx.name || '—')}</p>
+                    <p class="text-xs text-gray-400">${tx.phone}</p>
+                </td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold badge-${tx.type.split('_')[0]} ${!['earn','convert','purchase','withdraw'].includes(tx.type.split('_')[0]) ? 'bg-purple-100 text-purple-700' : ''}">
+                        ${tx.type.replace(/_/g, ' ')}
+                    </span>
+                </td>
+                <td class="p-4 text-right font-mono font-bold text-sm">
+                    ${tx.type === 'earn' ? tx.amount + ' pts' : 'Ksh ' + tx.amount.toFixed(2)}
+                </td>
+                <td class="p-4 text-xs text-gray-500 max-w-[180px] truncate">${tx.description || '—'}</td>
+                <td class="p-4">
+                    <span class="text-xs font-medium ${tx.status === 'completed' ? 'text-green-600' : tx.status === 'pending' ? 'text-yellow-600' : 'text-red-500'}">
+                        ${tx.status}
+                    </span>
+                </td>
+                <td class="p-4 text-xs text-gray-400">${(tx.created_at || '—').slice(0, 16)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="6" class="text-center py-10 text-gray-400">No transactions</td></tr>';
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-red-400">Failed to load</td></tr>';
+    }
+}
+
+
+// ── Videos ─────────────────────────────
+async function loadVideos() {
+    const tbody = document.getElementById('videos-tbody');
+    try {
+        const r = await fetch(`${API}/api/admin/videos`, { headers: authH() });
+        const d = await r.json();
+        if (!d.success) return;
+        tbody.innerHTML = d.videos.length ? d.videos.map(v => `
+            <tr class="border-b border-gray-50">
+                <td class="p-4">
+                    <img src="https://img.youtube.com/vi/${v.id}/default.jpg"
+                        class="w-20 h-14 rounded-lg object-cover bg-gray-100"
+                        onerror="this.src=''; this.className='w-20 h-14 rounded-lg bg-gray-200'">
+                </td>
+                <td class="p-4 font-mono text-xs text-gray-600">${v.id}</td>
+                <td class="p-4 text-sm text-gray-800 max-w-[200px] truncate">${escHtml(v.title)}</td>
+                <td class="p-4 text-center">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${v.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+                        ${v.active ? 'Active' : 'Hidden'}
+                    </span>
+                </td>
+                <td class="p-4 text-right">
+                    <div class="flex gap-2 justify-end items-center">
+                        <button onclick="toggleVideo('${v.id}')"
+                            class="text-xs px-3 py-1.5 rounded-lg font-bold transition active:scale-95 ${v.active ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}">
+                            ${v.active ? 'Hide' : 'Show'}
+                        </button>
+                        <button onclick="deleteVideo('${v.id}')"
+                            class="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg font-bold active:bg-red-100 transition">
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('') : '<tr><td colspan="5" class="text-center py-10 text-gray-400">No videos added yet</td></tr>';
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-10 text-red-400">Failed to load</td></tr>';
+    }
+}
+
+async function addVideo() {
+    const vid   = document.getElementById('vid-id').value.trim();
+    const title = document.getElementById('vid-title').value.trim();
+    const msg   = document.getElementById('vid-msg');
+    if (!vid || !title) {
+        msg.textContent = 'Enter Video ID and Title';
+        msg.className = 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+        return;
+    }
+    try {
+        const r = await fetch(`${API}/api/admin/videos/add`, {
+            method: 'POST', headers: authH(),
+            body: JSON.stringify({ id: vid, title })
+        });
+        const d = await r.json();
+        msg.textContent = d.success ? '✅ Video added!' : '❌ ' + d.message;
+        msg.className   = d.success ? 'text-green-600 text-sm' : 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+        if (d.success) {
+            document.getElementById('vid-id').value = '';
+            document.getElementById('vid-title').value = '';
+            loadVideos();
+        }
+    } catch {
+        msg.textContent = 'Connection error';
+        msg.className = 'text-red-500 text-sm';
+        msg.classList.remove('hidden');
+    }
+}
+
+async function toggleVideo(id) {
+    await fetch(`${API}/api/admin/videos/${id}/toggle`, { method: 'POST', headers: authH() });
+    loadVideos();
+}
+
+async function deleteVideo(id) {
+    if (!confirm('Delete this video? This cannot be undone.')) return;
+    await fetch(`${API}/api/admin/videos/${id}`, { method: 'DELETE', headers: authH() });
+    loadVideos();
+}
+
+// Escape HTML to prevent XSS from user-supplied names/descriptions
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+
+</body>
+</html>
